@@ -27,8 +27,8 @@
   
   // 定义互补滤波PI控制器系数与半周期
   #define Kp 0.8f
-  #define Ki 0.001f
-  #define halfT 0.005f
+  float Ki = 0.2;
+  float halfT;
   // 一阶龙格库塔积分初值
   float exint = 0, eyint = 0, ezint = 0;
   float norm;
@@ -75,6 +75,7 @@
     previousTime = currentTime;        
     currentTime = millis();            
     elapsedTime = (currentTime - previousTime) / 1000; 
+    halfT = elapsedTime/2;
     Wire.beginTransmission(MPU);
     Wire.write(0x43); 
     Wire.endTransmission(false);
@@ -224,9 +225,9 @@
     ex = AccY*vz - AccZ*vy;
     ey = AccZ*vx - AccX*vz;
     ez = AccX*vy - AccY*vx;
-    exint = exint + ex*Ki;
-    eyint = eyint + ey*Ki;
-    ezint = ezint + ez*Ki;
+    exint = exint + ex*Ki*halfT;
+    eyint = eyint + ey*Ki*halfT;
+    ezint = ezint + ez*Ki*halfT;
     GyroX = GyroX + Kp*ex + exint; 
     GyroY = GyroY + Kp*ey + eyint; 
     GyroZ = GyroZ + Kp*ez + ezint; 
