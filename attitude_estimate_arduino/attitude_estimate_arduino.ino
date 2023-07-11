@@ -90,9 +90,9 @@
     Wire.write(0x3B); // Start with register 0x3B (ACCEL_XOUT_H)
     Wire.endTransmission(false);
     Wire.requestFrom(MPU, 6, true); 
-    AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorX ; // X-axis value
-    AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorY ; // Y-axis value
-    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorZ ; // Z-axis value
+    AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorX -0.05; // X-axis value
+    AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorY +0.02; // Y-axis value
+    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorZ -2.01; // Z-axis value
     Accfilter(); // 加速度数据进行低通滤波
     
     // === 加载陀螺仪数据 === //
@@ -213,7 +213,7 @@
     filteredAccY = (alpha * AccY) + ((1 - alpha) * filteredAccY);
     AccY = filteredAccY;
     filteredAccZ = (alpha * AccZ) + ((1 - alpha) * filteredAccZ);
-    AccY = filteredAccZ;
+    AccZ = filteredAccZ;
   }
 
   void mahony () {
