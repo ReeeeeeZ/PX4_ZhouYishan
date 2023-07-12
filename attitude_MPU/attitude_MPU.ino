@@ -250,7 +250,7 @@
     //Serial.println(q3);
     
     // 第七步 更新欧拉角
-    roll = asin(2*(q0*q1+q2*q3))*180/PI;
+    roll = atan(2*(q2*q1+q0*q3)/(1-2*(q2*q2+q3*q3)))*180/PI;
     pitch = -asin(2*(q1*q3-q0*q2))*180/PI;
 
   }
