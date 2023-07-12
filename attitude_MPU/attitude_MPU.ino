@@ -67,7 +67,7 @@
     Wire.requestFrom(MPU, 6, true); 
     AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 - 0.05; // X-axis value
     AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 + 0.02; // Y-axis value
-    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 - 2.01; // Z-axis value
+    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 ; // Z-axis value
     Accfilter(); // 加速度数据进行低通滤波
     
     // === 加载陀螺仪数据 === //
@@ -83,19 +83,15 @@
     GyroY = (Wire.read() << 8 | Wire.read()) / 131.0 + 0.1;
     GyroZ = (Wire.read() << 8 | Wire.read()) / 131.0 - 1.27;
     Gyrofilter(); // 输出结果角度值，进行滑动平均滤波
-    AngleX = (AngleX + GyroX * elapsedTime)*PI/180; // deg/s * s = deg
-    pitch = (pitch + GyroY * elapsedTime)*PI/180;
+    /*
+    pitch = atan(AccX/sqrt(AccY*AccY+AccZ*AccZ));
     yaw =  (yaw + GyroZ * elapsedTime)*PI/180;
-    roll = AngleX;
+    roll = atan(AccY/AccZ);*/
     
     mahony(); // mahony姿态解算
     // 对三个欧拉角进行卡尔曼滤波
     //roll = kalmanX.getAngle(roll, GyroX, elapsedTime);
     //pitch = kalmanY.getAngle(pitch, GyroY, elapsedTime);
-
-    // 处理翻滚角大小
-    if (roll<0) roll=360+roll;
-    if (roll>360) roll=roll-360;
     
     // 输出三个欧拉角Roll,Pitch,Yaw
     Serial.print(roll);Serial.print(",");
@@ -143,8 +139,7 @@
     GyroZ = GyroZ*PI/180;   
     
     // 第一步 初始化四元数
-    /*
-    q0 = cos(pitch/2)*cos(roll/2)*cos(yaw/2)+sin(pitch/2)*sin(roll/2)*sin(yaw/2);
+    /*q0 = cos(pitch/2)*cos(roll/2)*cos(yaw/2)+sin(pitch/2)*sin(roll/2)*sin(yaw/2);
     q1 = sin(pitch/2)*cos(roll/2)*cos(yaw/2)-cos(pitch/2)*sin(roll/2)*sin(yaw/2);
     q2 = cos(pitch/2)*sin(roll/2)*cos(yaw/2)+sin(pitch/2)*cos(roll/2)*sin(yaw/2);
     q3 = cos(pitch/2)*cos(roll/2)*sin(yaw/2)+sin(pitch/2)*sin(roll/2)*cos(yaw/2);*/
@@ -191,7 +186,7 @@
     //Serial.println(q3);
     
     // 第七步 更新欧拉角
-    roll = atan(2*(q2*q1+q0*q3)/(1-2*(q2*q2+q3*q3)))*180/PI;
+    roll = atan(2*(q3*q2+q0*q1)/(1-2*(q1*q1+q2*q2)))*180/PI;
     pitch = -asin(2*(q1*q3-q0*q2))*180/PI;
 
   }
