@@ -89,9 +89,9 @@
     Wire.write(0x3B); // Start with register 0x3B (ACCEL_XOUT_H)
     Wire.endTransmission(false);
     Wire.requestFrom(MPU, 6, true); 
-    AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 - 0.05; // X-axis value
-    AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 + 0.02; // Y-axis value
-    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 - 2.01; // Z-axis value
+    AccX = -(Wire.read() << 8 | Wire.read()) / 16384.0 - 0.05; // X-axis value
+    AccY = -(Wire.read() << 8 | Wire.read()) / 16384.0 + 0.02; // Y-axis value
+    AccZ = -(Wire.read() << 8 | Wire.read()) / 16384.0; // Z-axis value
     Accfilter(); // 加速度数据进行低通滤波
     
     // === 加载陀螺仪数据 === //
@@ -246,7 +246,7 @@
     q3 = q3/norm;
     
     // 第七步 更新欧拉角
-    roll = atan(2*(q0*q3+q2*q1)/(1-2*(q2*q2+q3*q3)))*180/PI;
+    yaw = atan(2*(q0*q3+q2*q1)/(1-2*(q2*q2+q3*q3)))*180/PI;
     pitch = -asin(2*(q1*q3-q0*q2))*180/PI;
-    yaw = atan(2*(q2*q3+q0*q1)/(1-2*(q2*q2+q1*q1)))*180/PI;
+    roll = atan(2*(q2*q3+q0*q1)/(1-2*(q2*q2+q1*q1)))*180/PI;
   }
