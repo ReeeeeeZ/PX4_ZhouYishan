@@ -55,7 +55,6 @@
     Wire.endTransmission(true);
     delay(20);
     
-    calculate_IMU_error();
     delay(20);
   }
 
@@ -66,9 +65,9 @@
     Wire.write(0x3B); // Start with register 0x3B (ACCEL_XOUT_H)
     Wire.endTransmission(false);
     Wire.requestFrom(MPU, 6, true); 
-    AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorX -0.05; // X-axis value
-    AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorY +0.02; // Y-axis value
-    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 - AccErrorZ -1.01; // Z-axis value
+    AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 - 0.05; // X-axis value
+    AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 + 0.02; // Y-axis value
+    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 - 2.01; // Z-axis value
     Accfilter(); // 加速度数据进行低通滤波
     
     // === 加载陀螺仪数据 === //
@@ -80,9 +79,9 @@
     Wire.write(0x43); 
     Wire.endTransmission(false);
     Wire.requestFrom(MPU, 6, true); 
-    GyroX = (Wire.read() << 8 | Wire.read()) / 131.0 - GyroErrorX; 
-    GyroY = (Wire.read() << 8 | Wire.read()) / 131.0 - GyroErrorY;
-    GyroZ = (Wire.read() << 8 | Wire.read()) / 131.0 - GyroErrorZ;
+    GyroX = (Wire.read() << 8 | Wire.read()) / 131.0 + 0.85; 
+    GyroY = (Wire.read() << 8 | Wire.read()) / 131.0 + 0.1;
+    GyroZ = (Wire.read() << 8 | Wire.read()) / 131.0 - 1.27;
     Gyrofilter(); // 输出结果角度值，进行滑动平均滤波
     AngleX = (AngleX + GyroX * elapsedTime)*PI/180; // deg/s * s = deg
     pitch = (pitch + GyroY * elapsedTime)*PI/180;
@@ -91,8 +90,8 @@
     
     mahony(); // mahony姿态解算
     // 对三个欧拉角进行卡尔曼滤波
-    roll = kalmanX.getAngle(roll, GyroX, elapsedTime);
-    pitch = kalmanY.getAngle(pitch, GyroY, elapsedTime);
+    //roll = kalmanX.getAngle(roll, GyroX, elapsedTime);
+    //pitch = kalmanY.getAngle(pitch, GyroY, elapsedTime);
 
     // 处理翻滚角大小
     if (roll<0) roll=360+roll;
@@ -101,64 +100,6 @@
     // 输出三个欧拉角Roll,Pitch,Yaw
     Serial.print(roll);Serial.print(",");
     Serial.println(pitch);
-  }
-
-  void calculate_IMU_error() {
-    // 对传感器进行静态校准，应该在正式工作前将传感器水平静止放置
-    // We can call this funtion in the setup section to calculate the accelerometer and gyro data error. From here we will get the error values used in the above equations printed on the Serial Monitor.
-    // Note that we should place the IMU flat in order to get the proper values, so that we then can the correct values
-    // Read accelerometer values 200 times
-    
-    while (c < 200) {
-      Wire.beginTransmission(MPU);
-      Wire.write(0x3B);
-      Wire.endTransmission(false);
-      Wire.requestFrom(MPU, 6, true);
-      AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 ;
-      AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 ;
-      AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 ;
-      // Sum all readings
-      AccErrorX = AccErrorX + AccX / 16384.0 ;
-      AccErrorY = AccErrorY + AccY / 16384.0 ;
-      AccErrorZ = AccErrorZ + AccZ / 16384.0 ;
-      c++;
-    }
-    AccErrorX = AccErrorX / 200;
-    AccErrorY = AccErrorY / 200;
-    AccErrorZ = AccErrorZ / 200;
-    c = 0;
-    // Read gyro values 200 times
-    while (c < 200) {
-      Wire.beginTransmission(MPU);
-      Wire.write(0x43);
-      Wire.endTransmission(false);
-      Wire.requestFrom(MPU, 6, true);
-      GyroX = Wire.read() << 8 | Wire.read();
-      GyroY = Wire.read() << 8 | Wire.read();
-      GyroZ = Wire.read() << 8 | Wire.read();
-      // Sum all readings
-      GyroErrorX = GyroErrorX + (GyroX / 131.0);
-      GyroErrorY = GyroErrorY + (GyroY / 131.0);
-      GyroErrorZ = GyroErrorZ + (GyroZ / 131.0);
-      c++;
-    }
-    //Divide the sum by 200 to get the error value
-    GyroErrorX = GyroErrorX / 200;
-    GyroErrorY = GyroErrorY / 200;
-    GyroErrorZ = GyroErrorZ / 200;
-    c = 0;
-  /*
-    // Print the error values on the Serial Monitor
-    Serial.print("AccErrorX: ");
-    Serial.println(AccErrorX);
-    Serial.print("AccErrorY: ");
-    Serial.println(AccErrorY);
-    Serial.print("GyroErrorX: ");
-    Serial.println(GyroErrorX);
-    Serial.print("GyroErrorY: ");
-    Serial.println(GyroErrorY);
-    Serial.print("GyroErrorZ: ");
-    Serial.println(GyroErrorZ);*/
   }
 
   void Gyrofilter(){
