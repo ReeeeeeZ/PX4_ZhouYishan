@@ -114,6 +114,7 @@
     previousTime = currentTime;        
     currentTime = millis();            
     elapsedTime = (currentTime - previousTime) / 1000; 
+    float elapsedTime2 = elapsedTime;
     halfT = elapsedTime/2;
     Wire.beginTransmission(MPU);
     Wire.write(0x43); 
@@ -123,10 +124,6 @@
     GyroY = (Wire.read() << 8 | Wire.read()) / 131.0 + 0.1;
     GyroZ = (Wire.read() << 8 | Wire.read()) / 131.0 - 1.27;
     Gyrofilter(); // 输出结果角度值，进行滑动平均滤波
-    /*
-    pitch = atan(AccX/sqrt(AccY*AccY+AccZ*AccZ));
-    yaw =  (yaw + GyroZ * elapsedTime)*PI/180;
-    roll = atan(AccY/AccZ);*/
     
     mahony(); // mahony姿态解算
     // 对三个欧拉角进行卡尔曼滤波
@@ -138,15 +135,27 @@
     GyroY = GyroY*180/PI;
     GyroZ = GyroZ*180/PI;
 
-    // 对三轴角速度进行内环PID
+    // 对三轴角度进行内环PID
     PID_init();
-    roll_new = PID_angle(0,roll);
-    pitch_new = PID_angle(0,pitch);
-    yaw_new = PID_angle(0,yaw);
-    GyroX = (roll_new-roll)/elapsedTime;
-    GyroY = (pitch_new-pitch)/elapsedTime;
-    GyroZ = (yaw_new-yaw)/elapsedTime;
+    GyroX_new = PID_anglespeed(0,GyroX);
+    GyroY_new = PID_anglespeed(0,GyroY);
+    GyroZ_new = PID_anglespeed(0,GyroZ);
 
+    // === 加载陀螺仪数据 === //
+    previousTime = currentTime;        
+    currentTime = millis();            
+    elapsedTime = (currentTime - previousTime) / 1000; 
+    elapsedTime2 += elapsedTime;
+    halfT = elapsedTime/2;
+    Wire.beginTransmission(MPU);
+    Wire.write(0x43); 
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU, 6, true); 
+    GyroX = (Wire.read() << 8 | Wire.read()) / 131.0 + 0.85; 
+    GyroY = (Wire.read() << 8 | Wire.read()) / 131.0 + 0.1;
+    GyroZ = (Wire.read() << 8 | Wire.read()) / 131.0 - 1.27;
+    Gyrofilter(); // 输出结果角度值，进行滑动平均滤波
+    
     mahony(); // mahony姿态解算
  
     //更新三轴转动角速度，输出为角度制
@@ -154,26 +163,20 @@
     GyroY = GyroY*180/PI;
     GyroZ = GyroZ*180/PI;
 
-    // 对三轴角度进行外环PID
-    PID_init();
-    GyroX_new = PID_anglespeed(0,GyroX);
-    GyroY_new = PID_anglespeed(0,GyroY);
-    GyroZ_new = PID_anglespeed(0,GyroZ);
-    accangleX = (GyroX_new-GyroX)/elapsedTime;
-    accangleY = (GyroY_new-GyroY)/elapsedTime;
-    accangleZ = (GyroZ_new-GyroZ)/elapsedTime;
-
-    // 对三轴角速度进行内环PID
+    // 对三轴角速度进行外环PID
     PID_init();
     roll_new = PID_angle(0,roll);
     pitch_new = PID_angle(0,pitch);
     yaw_new = PID_angle(0,yaw);
-    GyroX = (roll_new-roll)/elapsedTime;
-    GyroY = (pitch_new-pitch)/elapsedTime;
-    GyroZ = (yaw_new-yaw)/elapsedTime;
-    /*Serial.print(GyroX_new);Serial.print(",");
-    Serial.print(GyroY_new);Serial.print(",");
-    Serial.println(GyroZ_new);*/
+    GyroX = (roll_new-roll)/elapsedTime2;
+    GyroY = (pitch_new-pitch)/elapsedTime2;
+    GyroZ = (yaw_new-yaw)/elapsedTime2;
+    
+    // 对三轴角度进行内环PID
+    PID_init();
+    GyroX_new = PID_anglespeed(0,GyroX);
+    GyroY_new = PID_anglespeed(0,GyroY);
+    GyroZ_new = PID_anglespeed(0,GyroZ);
   }
 
   void Gyrofilter(){
