@@ -14,7 +14,7 @@
   float GyroX_new, GyroY_new, GyroZ_new, accangleX, accangleY, accangleZ;
   float AccErrorX, AccErrorY, AccErrorZ, GyroErrorX, GyroErrorY, GyroErrorZ;
   float elapsedTime, currentTime, previousTime;
-  int c = 0;
+  int c = 0, i = 0, j = 0, k = 0;
   
   #define FILTER_NUM  8 // 滑动平均滤波数值个数
   float filterx[FILTER_NUM] = {0}, filtery[FILTER_NUM] = {0}, filterz[FILTER_NUM] = {0};
@@ -89,10 +89,18 @@
     float m_yaw;
   }Goal;
   int const motor_n = 6; // 电机数量
-  float motorx[motor_n], motory[motor_n]; // 第i个电机在重心坐标系下的坐标
-  int motorz[motor_n]; // 第i个电机转动方向沿z正向记为1，负方向记为-1
   float M[motor_n];
   float motor_l;
+  float motor_define[4][motor_n]; // 存储电机位置和转动方向
+  float motor_rotate[motor_n][4];
+  float motor_multiple[motor_n][motor_n];
+  float motorY[motor_n];
+  float motorX[motor_n];
+  int motorZ[motor_n];
+  float matrix_multiple[motor_n][motor_n];
+  float W[motor_n][2*motor_n], result[motor_n][motor_n];
+  float tem_1, tem_2, tem_3;
+  float matrix_inv[motor_n][4];
     
 
   void setup() {
@@ -325,15 +333,130 @@
    return pidangle.ActualSpeed;
   }
 
-  void motor_control(int n){
-    n = motor_n;
-    c = 0;
-    while(c<n){
-      Motor.motor_x = motorx[c];
-      Motor.motor_y = motory[c];
-      Motor.motor_z = motorz[c];
-      c++;
+  void motordefine(){
+    for(i=0;i<motor_n;i++){
+      motor_define[1][i]=1;
+      Motor.motor_y = motorY[i];
+      Motor.motor_x = motorX[i];
       motor_l = sqrt(Motor.motor_y*Motor.motor_y+Motor.motor_x*Motor.motor_x);
-      M[c] = (0.8*Goal.f_thrust+Motor.motor_y*Goal.m_roll/motor_l+Motor.motor_x*Goal.m_pitch/motor_l+Motor.motor_z*Goal.m_yaw)/3;
+      motor_define[2][i]=Motor.motor_y/motor_l;
+      motor_define[3][i]=Motor.motor_x/motor_l;
+      motor_define[4][i]=motorZ[i];
+    }
+  }
+
+  void motorrotate(){
+    for(i=0;i<motor_n;i++){
+      for(j=0;j<motor_n;j++){
+        motor_rotate[i][j]=motor_define[j][i];
+      }
+    }
+  }
+
+  void matrixmultiple(){
+    for(int i=0; c<motor_n; c++){
+      for(int j=0; j<motor_n; j++){
+        for(int k=0; k<4; k++){
+          matrix_multiple[i][j] += motor_rotate[i][k]*motor_define[k][j];
+        }
+      }
+    }
+  }
+
+  void Gaussian_elimination()
+  {
+    // 对矩阵右半部分进行扩增
+    for(i = 0;i < motor_n; i++){
+      for(j = 0;j < 2 * motor_n; j++){
+        if(j<motor_n){
+          W[i][j] = matrix_multiple[i][j];
+        }
+        else{
+          W[i][j] = (float) (j-motor_n == i ? 1:0);
+        }
+      }
+    }
+ 
+    for(i=0;i<motor_n;i++)
+    {
+      // 判断矩阵第一行第一列的元素是否为0，若为0，继续判断第二行第一列元素，直到不为0，将其加到第一行
+      if( ((int) W[i][i]) == 0)
+      { 
+        for(j=i+1;j<motor_n;j++)
+        {
+          if( ((int) W[j][i]) != 0 ) break;
+        }
+        if(j == motor_n)
+        {
+          printf("这个矩阵不能求逆");
+          break;
+        }
+        //将前面为0的行加上后面某一行
+        for(k=0;k<2*motor_n;k++)
+        {
+          W[i][k] += W[j][k];
+        }
+      }
+ 
+      //将前面行首位元素置1
+      tem_1 = W[i][i];
+      for(j=0;j<2*motor_n;j++)
+      {
+        W[i][j] = W[i][j] / tem_1;
+      }
+ 
+      //将后面所有行首位元素置为0
+      for(j=i+1;j<motor_n;j++)
+      {
+        tem_2 = W[j][i];
+        for(k=i;k<2*motor_n;k++)
+        {
+          W[j][k] = W[j][k] - tem_2 * W[i][k];
+        }
+      }
+    }
+ 
+    // 将矩阵前半部分标准化
+    for(i=motor_n-1;i>=0;i--)
+    {
+      for(j=i-1;j>=0;j--)
+      {
+        tem_3 = W[j][i];
+        for(k=i;k<2*motor_n;k++)
+        {
+          W[j][k] = W[j][k] - tem_3*W[i][k];
+        }
+      }
+    }
+ 
+    //得出逆矩阵
+    for(i=0;i<motor_n;i++)
+   {
+      for(j=motor_n;j<2*motor_n;j++)
+      {
+        result[i][j-motor_n] = W[i][j];
+      }
+    }
+  }
+
+  void motorinv(){
+    for(int i=0; c<motor_n; c++){
+      for(int j=0; j<4; j++){
+        for(int k=0; k<motor_n; k++){
+          matrix_multiple[i][j] += result[i][k]*motor_rotate[k][j];
+        }
+      }
+    }
+  }
+
+  void motor_control(int motor_n){
+    motordefine();
+    motorrotate();
+    matrixmultiple();
+    Gaussian_elimination();
+    motorinv;
+    for(i=0;i<motor_n;i++){
+      M[i]=Goal.f_thrust*matrix_inv[i][0]+Goal.m_roll*matrix_inv[i][1]+Goal.m_pitch*matrix_inv[i][2]+Goal.m_yaw*matrix_inv[i][3];
+      if(M[i]>1) M[i]=1;
     }
   }
